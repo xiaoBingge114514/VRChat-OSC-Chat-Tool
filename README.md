@@ -2,6 +2,8 @@
 为VRChat的聊天消息制作的OSC程序，它带有UI！
 * 欢迎你为程序提出新功能的建议！
 
+# 预览
+![预览](https://github.com/user-attachments/assets/32038f0d-be72-4d5e-87c6-4822c862f6ca)
 
 # 有 需求/问题 吗？
 * 在 Discord 上添加我的好友并给我发消息！
