@@ -3,7 +3,8 @@
 * 欢迎你为程序提出新功能的建议！
 
 # 预览
-![预览](https://github.com/user-attachments/assets/32038f0d-be72-4d5e-87c6-4822c862f6ca)
+![预览](https://github.com/user-attachments/assets/e1895ded-4b1d-4dc0-af86-843ff1f5edfa)
+
 
 # 有 需求/问题 吗？
 * 在 Discord 上添加我的好友并给我发消息！
