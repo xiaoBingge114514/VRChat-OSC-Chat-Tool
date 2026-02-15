@@ -2,6 +2,10 @@
 为VRChat的聊天消息制作的OSC程序，它带有UI！
 * 欢迎你为程序提出新功能的建议！
 
+# 新功能添加中！（2.15）
+*添加一个 检测小米手表10心率广播的功能（基于HRS协议）
+
+
 # 预览
 ![预览](https://github.com/user-attachments/assets/e1895ded-4b1d-4dc0-af86-843ff1f5edfa)
 
@@ -18,7 +22,7 @@
 * 目前作为焦点的窗口名称
 * 使用 SMTC 协议获取歌曲信息！
 * 离开电脑的时间
-* CPU、RAM、GPU 占用信息
+* CPU、RAM、GPU 占用信息 - 不支持AMD显卡
 
 # 无需安装
 * 只需下载文件运行即可
