@@ -25,7 +25,8 @@
 
 ## 📸 预览
 
-<img width="1282" height="752" alt="预览图" src="https://github.com/user-attachments/assets/2c6da2af-551e-4279-879e-a06704635f67" />
+<img width="1223" height="837" alt="a1abb529-d7b0-4929-a958-478f9a8dcc03" src="https://github.com/user-attachments/assets/785759aa-3cb7-4ba3-857f-6722c48c94cb" />
+
 
 ---
 
@@ -58,7 +59,8 @@
 * ✅ **发送顺序调整** - 自由排列消息内容与各项附加信息的先后顺序（**NEW!**）
 * ✅ **硬件标签自定义** - 自定义硬件监测项的显示名称（**NEW!**）
 * ✅ **字符数限制** - 控制窗口标题和音乐信息的显示长度（**NEW!**）
-
+* ✅ **发送设置** - 控制OSC发送的地址以及端口 （**NEW!**）
+  
 ---
 
 ## 📦 无需安装
