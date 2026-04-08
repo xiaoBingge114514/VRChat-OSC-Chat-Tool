@@ -25,7 +25,6 @@
 ## 📸 预览
 <img width="1503" height="911" alt="QQ20260408-043418" src="https://github.com/user-attachments/assets/dfd6a367-bfa7-40bf-bf5c-5682f13ed326" />
 
-
 ---
 
 ## 📞 有 需求/问题 吗？
@@ -158,6 +157,16 @@ pip install auto-py-to-exe
   * 启用模板字符串模式，使用高级格式化功能
   * 提供快速插入附加项的按钮，包括消息内容、时间、窗口标题、挂机状态、音乐信息、硬件监测、心率、换行符等
   * 可自定义模板字符串，支持UTF-8字符
+
+---
+
+## 📝 字符串模板
+* 适用于纯音乐+两个字的简易字符串模板！
+<pre>
+{time}❀{message}❀{window}\n{hardware}\n{heart_rate}   {idle}\n{music}
+</pre>
+<img width="427" height="321" alt="image" src="https://github.com/user-attachments/assets/de3bdae2-c4e5-4ae1-85f3-9fc11a2e03c9" />
+
 
 ---
 
