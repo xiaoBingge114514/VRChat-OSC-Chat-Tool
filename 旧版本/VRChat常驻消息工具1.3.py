@@ -33,7 +33,7 @@ HRS_UUID = "0000180d-0000-1000-8000-00805f9b34fb"
 HRM_UUID = "00002a37-0000-1000-8000-00805f9b34fb"
 
 # 配置文件路径
-CONFIG_FILE = "vrchat_config.json"
+CONFIG_FILE = "../vrchat_config.json"
 
 
 class Config(BaseModel):
@@ -782,7 +782,7 @@ class VRChatAutoChat:
                 'template_string': self.template_string.get()
             }
 
-            with open('vrchat_config.json', 'w', encoding='utf-8') as f:
+            with open('../vrchat_config.json', 'w', encoding='utf-8') as f:
                 json.dump(config, f, indent=4, ensure_ascii=False)
             
             print("配置已保存")
