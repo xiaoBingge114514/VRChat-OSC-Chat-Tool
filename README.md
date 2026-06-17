@@ -71,6 +71,26 @@
 
 ## 🛠️ 本地构建
 
+### 项目结构
+
+```text
+VRChat-OSC-Chat-Tool/
+├─ main.py                  # 程序入口文件，用于启动整个应用
+├─ config.py                # 配置管理模块，负责读取、保存和处理程序配置
+├─ osc_sender.py            # OSC 消息发送模块，用于向 VRChat 发送聊天或控制消息
+├─ hardware_monitor.py      # 硬件状态监控模块，用于获取 CPU、内存等系统信息
+├─ ble_heartrate.py         # 蓝牙心率模块，用于读取 BLE 心率设备数据
+├─ netease_sync.py          # 网易云音乐同步模块，用于获取当前播放歌曲信息
+├─ vrchat_config.json       # VRChat OSC 配置文件，保存运行所需的相关参数（软件运行后生成）
+├─ VRChat-OSC-Say!.ico      # 应用图标文件
+└─ gui/
+   ├─ __init__.py           # GUI 包初始化文件
+   ├─ app.py                # 图形界面主程序，负责创建和运行主窗口
+   ├─ widgets.py            # 自定义界面组件模块，封装可复用的 GUI 控件
+   ├─ settings_panel.py     # 设置面板模块，用于管理用户可调整的选项
+   ├─ message_logic.py      # 消息逻辑模块，负责处理消息生成、更新和发送逻辑
+   └─ config_panel.py       # 配置面板模块，用于展示和编辑程序配置
+```
 
 ### 环境要求
 * Python 3.11+ https://www.python.org/downloads/ 
@@ -86,13 +106,7 @@ pip install winsdk
 pip install bleak
 pip install websockets
 pip install pydantic
-```
-
-### 构建可执行文件
-
-```bash
 pip install PyInstaller
-# 或使用可视化工具
 pip install auto-py-to-exe
 ```
 
