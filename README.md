@@ -1,4 +1,4 @@
-# <img src="https://github.com/xiaoBingge114514/VRChat-OSC-Chat-Tool/blob/main/VRChat-OSC-Say!.ico" width="35" height="35"> VRChat-OSC-Chat-Tool v1.3
+# <img src="https://github.com/xiaoBingge114514/VRChat-OSC-Chat-Tool/blob/main/VRChat-OSC-Say!.ico" width="35" height="35"> VRChat-OSC-Chat-Tool v1.4
 
 为VRChat的聊天消息制作的OSC ChatBox 工具程序
 
