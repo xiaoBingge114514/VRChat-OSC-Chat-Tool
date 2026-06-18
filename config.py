@@ -1,11 +1,20 @@
 """全局配置、共享状态与歌曲/歌词状态模型。"""
 
+import os
+import sys
 import threading
 
 from pydantic import BaseModel
 
 
-CONFIG_FILE = "vrchat_config.json"
+def get_base_dir():
+    """返回程序运行目录：打包后为 exe 所在目录，开发环境为脚本所在目录"""
+    if getattr(sys, 'frozen', False):
+        return os.path.dirname(sys.executable)
+    return os.path.dirname(os.path.abspath(__file__))
+
+
+CONFIG_FILE = os.path.join(get_base_dir(), "vrchat_config.json")
 
 # BLE 服务与特征 UUID，供心率模块直接复用。
 HRS_UUID = "0000180d-0000-1000-8000-00805f9b34fb"

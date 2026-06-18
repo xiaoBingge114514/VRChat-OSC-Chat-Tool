@@ -5,9 +5,20 @@ import re
 from datetime import datetime, timedelta
 
 import psutil
+import pythoncom
 import win32api
+import win32com.client
 import win32gui
-from GPUtil import GPUtil
+
+# 顶级导入确保 PyInstaller 能检测到 pyadl 和 pynvml 并打包进 exe
+try:
+    import pyadl  # noqa: F401
+except Exception:
+    pass
+try:
+    import pynvml  # noqa: F401
+except Exception:
+    pass
 from winsdk.windows.media.control import (
     GlobalSystemMediaTransportControlsSessionManager as MediaManager,
     GlobalSystemMediaTransportControlsSessionPlaybackStatus,
@@ -16,7 +27,8 @@ from winsdk.windows.media.control import (
 
 def get_cpu_usage():
     try:
-        return psutil.cpu_percent(interval=None)
+        # 阻塞 0.1 秒采样，避免竞态导致 0% 读数
+        return psutil.cpu_percent(interval=0.1)
     except Exception:
         return "N/A"
 
@@ -29,14 +41,99 @@ def get_ram_usage():
         return "N/A"
 
 
-def get_gpu_usage():
+# 厂商检测结果缓存，避免每次调用都查询 WMI
+_GPU_VENDOR_CACHE = None
+
+
+def detect_gpu_vendor():
+    """检测 GPU 厂商。返回 'nvidia'、'amd'、'intel' 或 None（无 GPU）。结果会被缓存。
+    注意：主线程 COM 已在 main.py 中初始化，本函数不再自行管理 COM 生命周期，
+    避免 win32com 内部缓存的 COM 对象在 CoUninitialize 后释放时产生 IUnknown 异常。
+    """
+    global _GPU_VENDOR_CACHE
+    if _GPU_VENDOR_CACHE is not None:
+        return _GPU_VENDOR_CACHE
     try:
-        gpus = GPUtil.getGPUs()
-        if gpus:
-            return f"{gpus[0].load * 100:.0f}%"
+        locator = win32com.client.Dispatch("WbemScripting.SWbemLocator")
+        service = locator.ConnectServer(".", "root\\cimv2")
+        items = service.ExecQuery("SELECT Name FROM Win32_VideoController")
+        for item in items:
+            name = item.Name.lower()
+            if "nvidia" in name:
+                _GPU_VENDOR_CACHE = "nvidia"
+                return "nvidia"
+            if "amd" in name or "radeon" in name or "advanced micro devices" in name:
+                _GPU_VENDOR_CACHE = "amd"
+                return "amd"
+            if "intel" in name:
+                _GPU_VENDOR_CACHE = "intel"
+                return "intel"
+        _GPU_VENDOR_CACHE = None
+        return None
+    except Exception:
+        _GPU_VENDOR_CACHE = None
+        return None
+
+
+def get_nvidia_gpu_usage():
+    """通过 pynvml 直接调用 NVML DLL 获取 NVIDIA GPU 使用率，不产生子进程。"""
+    try:
+        from pynvml import (
+            nvmlInit,
+            nvmlDeviceGetCount,
+            nvmlDeviceGetHandleByIndex,
+            nvmlDeviceGetUtilizationRates,
+            nvmlShutdown,
+            NVMLError,
+        )
+        nvmlInit()
+        count = nvmlDeviceGetCount()
+        for i in range(count):
+            handle = nvmlDeviceGetHandleByIndex(i)
+            util = nvmlDeviceGetUtilizationRates(handle)
+            nvmlShutdown()
+            return f"{util.gpu:.0f}%"
+        nvmlShutdown()
+        return "无GPU"
+    except Exception as e:
+        print(f"[NVIDIA GPU] 查询失败: {e}")
+        try:
+            nvmlShutdown()
+        except Exception:
+            pass
+        return "无法获取GPU数据"
+
+
+def get_amd_gpu_usage():
+    """通过 pyadl（AMD ADL 直接 DLL 调用）获取 AMD GPU 使用率，不产生子进程。"""
+    try:
+        from pyadl import ADLManager
+    except Exception:
+        return "AMD库未安装"
+    try:
+        devices = ADLManager.getInstance().getDevices()
+        if devices:
+            return f"{devices[0].getCurrentUsage():.0f}%"
         return "无GPU"
     except Exception:
-        return "无法获取GPU数据"
+        return "无法获取AMD GPU数据"
+
+
+def get_gpu_usage():
+    """获取 GPU 使用率，自动识别 NVIDIA / AMD / Intel / 无 GPU。
+    各厂商均使用直接 DLL 调用（pynvml / pyadl），不产生子进程，
+    避免 PyInstaller 打包后控制台窗口闪烁。
+    """
+    vendor = detect_gpu_vendor()
+    if vendor == "nvidia":
+        return get_nvidia_gpu_usage()
+    elif vendor == "amd":
+        return get_amd_gpu_usage()
+    elif vendor == "intel":
+        # Intel Arc 暂通过 WMI（待扩展）
+        return "无GPU"
+    else:
+        return "无GPU"
 
 
 def get_idle_duration():
@@ -150,7 +247,7 @@ def build_hardware_parts(
             )
     if include_gpu:
         gpu_usage = get_gpu_usage()
-        if gpu_usage and gpu_usage != "无法获取GPU数据":
+        if gpu_usage and gpu_usage not in ("无法获取GPU数据", "无法获取AMD GPU数据", "AMD库未安装"):
             parts.append(f"GPU({gpu_label}): {gpu_usage}" if gpu_label else f"GPU: {gpu_usage}")
     return parts
 

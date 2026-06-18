@@ -4,7 +4,7 @@ import asyncio
 import tkinter as tk
 
 from ble_heartrate import HeartRateMonitor
-from config import Config, SharedState
+from config import CONFIG_FILE, Config, SharedState
 from pythonosc import udp_client
 
 from .config_panel import ConfigMixin
@@ -65,10 +65,21 @@ class VRChatAutoChat(
         self.use_template_mode = tk.BooleanVar(value=False)
         self.template_string = tk.StringVar(value="{time}❀{message}❀{window}\n{music}{hardware}{heart_rate}{idle}")
 
+        # 开机自启发送相关变量
+        self.auto_start_enabled = tk.BooleanVar(value=False)
+        self.auto_start_delay = tk.IntVar(value=0)
+        self.auto_start_countdown_var = tk.StringVar(value="")
+        self.auto_start_countdown_remaining = 0
+
         self.debug_update_interval = 1000
         self.debug_update_job = None
         self.debug_labels = {}
         self.last_send_time = 0
+
+        # 硬件读数缓存，保证一次发送周期内 OSC 消息和调试面板显示一致
+        self._cached_cpu = None
+        self._cached_ram = None
+        self._cached_gpu = None
 
         self.original_wrap_state = False
 
@@ -93,6 +104,8 @@ class VRChatAutoChat(
         self.root.geometry("850x600")
         self.create_widgets()
         self.create_watermark()
+        # 启动时根据已加载的配置同步模板模式状态
+        self.update_template_mode()
         # 修改居中逻辑
         self.root.update_idletasks()
         x = (self.root.winfo_screenwidth() // 2) - (800 // 2)
@@ -100,6 +113,15 @@ class VRChatAutoChat(
         self.root.geometry(f"800x600+{x}+{y}")
         self.root.protocol('WM_DELETE_WINDOW', self.on_close)
         self.update_status()
+
+        # 开机自启发送：若启用则在指定延时后自动开始发送
+        if self.auto_start_enabled.get():
+            delay = self._safe_int_get(self.auto_start_delay, 'auto_start_delay', 0)
+            self.auto_start_countdown_remaining = delay
+            if delay > 0:
+                self.auto_start_countdown_var.set(f"自动启动倒计时: {delay}秒")
+                self.root.after(1000, self._update_auto_start_countdown)
+            self.root.after(delay * 1000, self.start_auto_send)
 
         # 监听消息内容变化，控制开始按钮状态
         self.text_input.bind("<KeyRelease>", self.check_start_button_state)
@@ -114,6 +136,35 @@ class VRChatAutoChat(
     def on_focus_out(self, event=None):
         """当主窗口失去焦点时的处理"""
         pass
+    def start_auto_send(self):
+        """开机自启：检查条件后自动开始发送"""
+        self.auto_start_countdown_var.set("")  # 清除倒计时提示
+        if self.is_sending:
+            return
+        raw_message = self.text_input.get("1.0", "end-1c").strip()
+        has_enabled_feature = (
+                self.auto_time.get() or
+                self.auto_window.get() or
+                self.auto_music.get() or
+                self.auto_idle.get() or
+                self.auto_hardware.get() or
+                self.auto_heart_rate.get()
+        )
+        if not raw_message and not has_enabled_feature:
+            return
+        self.start_sending()
+        self.start_btn.config(text="停止发送")
+    def _update_auto_start_countdown(self):
+        """每秒更新自动启动倒计时"""
+        if self.is_sending:
+            self.auto_start_countdown_var.set("")
+            return
+        self.auto_start_countdown_remaining -= 1
+        if self.auto_start_countdown_remaining > 0:
+            self.auto_start_countdown_var.set(f"自动启动倒计时: {self.auto_start_countdown_remaining}秒")
+            self.root.after(1000, self._update_auto_start_countdown)
+        else:
+            self.auto_start_countdown_var.set("")
     def check_start_button_state(self, event=None):
         """检查开始按钮状态"""
         message_content = self.text_input.get("1.0", "end-1c").strip()
@@ -134,7 +185,41 @@ class VRChatAutoChat(
             self.start_btn.config(state=tk.NORMAL)
         else:
             self.start_btn.config(state=tk.DISABLED)
+    def _safe_order_int(self, var):
+        """安全获取排序 StringVar 的整数值"""
+        try:
+            return int(var.get())
+        except (tk.TclError, ValueError):
+            # 回退到 0
+            var.set("0")
+            return 0
     def update_osc_client(self):
         ip = self.osc_ip.get()
-        port = self.osc_port.get()
+        port = self._safe_int_get(self.osc_port, 'osc_port', 9000)
         self.osc_client = udp_client.SimpleUDPClient(ip, port)
+    @staticmethod
+    def _validate_digits(P):
+        """验证输入是否全为数字（用于 Spinbox/Entry 的 validatecommand）"""
+        if P == "":
+            return False
+        return P.isdigit()
+    def _safe_int_get(self, var, config_key, fallback):
+        """安全获取 IntVar 数值：捕获 TclError，依次回退到配置文件值、硬编码默认值"""
+        import json, os
+        try:
+            return var.get()
+        except tk.TclError:
+            # 尝试从配置文件恢复
+            try:
+                if os.path.exists(CONFIG_FILE):
+                    with open(CONFIG_FILE, 'r', encoding='utf-8') as f:
+                        config = json.load(f)
+                    val = config.get(config_key, fallback)
+                    if isinstance(val, (int, float)):
+                        var.set(int(val))
+                        return int(val)
+            except Exception:
+                pass
+            # 最终回退到硬编码默认值
+            var.set(fallback)
+            return fallback

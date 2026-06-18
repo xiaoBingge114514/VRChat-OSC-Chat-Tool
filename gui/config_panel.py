@@ -68,6 +68,10 @@ class ConfigMixin:
                 self.template_string.set(
                     config.get('template_string', '{message}{time}{window}{idle}{music}{hardware}{heart_rate}'))
 
+                # 加载开机自启发送设置
+                self.auto_start_enabled.set(config.get('auto_start_enabled', False))
+                self.auto_start_delay.set(config.get('auto_start_delay', 0))
+
             else:
                 # 默认配置
                 self.order_vars = {option: tk.StringVar(value=str(idx)) for idx, option in
@@ -81,17 +85,17 @@ class ConfigMixin:
         try:
             # 构建配置字典，第一个键专门用于声明文件用途
             config = {
-                "_file_description": "VRChat 常驻消息工具配置文件 (v1.3) - 请勿手动修改此处，以免格式错误",
-                "_version": "1.3",
+                "_file_description": "VRChat 常驻消息工具配置文件 (v1.4) - 请勿手动修改此处，以免格式错误",
+                "_version": "1.4",
                 "order": self.get_current_order(),
                 'cpu_custom_label': self.cpu_custom_label.get(),
                 'ram_custom_label': self.ram_custom_label.get(),
                 'gpu_custom_label': self.gpu_custom_label.get(),
-                'window_title_limit': self.window_title_limit.get(),
-                'music_title_limit': self.music_title_limit.get(),
-                'music_artist_limit': self.music_artist_limit.get(),
+                'window_title_limit': self._safe_int_get(self.window_title_limit, 'window_title_limit', 20),
+                'music_title_limit': self._safe_int_get(self.music_title_limit, 'music_title_limit', 30),
+                'music_artist_limit': self._safe_int_get(self.music_artist_limit, 'music_artist_limit', 30),
                 'osc_ip': self.osc_ip.get(),
-                'osc_port': self.osc_port.get(),
+                'osc_port': self._safe_int_get(self.osc_port, 'osc_port', 9000),
                 'auto_time': self.auto_time.get(),
                 'auto_window': self.auto_window.get(),
                 'auto_wrap': self.auto_wrap.get(),
@@ -102,20 +106,22 @@ class ConfigMixin:
                 'auto_ram': self.auto_ram.get(),
                 'auto_gpu': self.auto_gpu.get(),
                 'auto_heart_rate': self.auto_heart_rate.get(),
-                'idle_threshold': self.idle_threshold.get(),
+                'idle_threshold': self._safe_int_get(self.idle_threshold, 'idle_threshold', 30),
                 'advanced_music_enabled': self.advanced_music_enabled.get(),
                 'ncm_path': self.ncm_path.get(),
-                'ncm_port': self.ncm_port.get(),
+                'ncm_port': self._safe_int_get(self.ncm_port, 'ncm_port', 9222),
                 'ncm_bar_width': self.ncm_config.bar_width,
                 'ncm_bar_filled': self.ncm_config.bar_filled,
                 'ncm_bar_thumb': self.ncm_config.bar_thumb,
                 'ncm_bar_empty': self.ncm_config.bar_empty,
                 'ncm_template': self.ncm_config.template,
                 'use_template_mode': self.use_template_mode.get(),
-                'template_string': self.template_string.get()
+                'template_string': self.template_string.get(),
+                'auto_start_enabled': self.auto_start_enabled.get(),
+                'auto_start_delay': self._safe_int_get(self.auto_start_delay, 'auto_start_delay', 0)
             }
 
-            with open('vrchat_config.json', 'w', encoding='utf-8') as f:
+            with open(CONFIG_FILE, 'w', encoding='utf-8') as f:
                 json.dump(config, f, indent=4, ensure_ascii=False)
 
             print("配置已保存")
@@ -123,5 +129,5 @@ class ConfigMixin:
             print(f"保存配置失败: {e}")
             messagebox.showerror("错误", f"无法保存配置文件:\n{e}")
     def get_current_order(self):
-        sorted_items = sorted(self.order_vars.items(), key=lambda x: int(x[1].get()))
+        sorted_items = sorted(self.order_vars.items(), key=lambda x: self._safe_order_int(x[1]))
         return [item[0] for item in sorted_items]

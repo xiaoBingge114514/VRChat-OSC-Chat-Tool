@@ -21,6 +21,14 @@ from config import Config, SharedState
 HEADERS = {"User-Agent": "Mozilla/5.0", "Referer": "https://music.163.com/"}
 
 
+def _hide_window():
+    """返回 startupinfo，隐藏子进程的控制台窗口（PyInstaller 无控制台模式必需）。"""
+    startupinfo = subprocess.STARTUPINFO()
+    startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+    startupinfo.wShowWindow = subprocess.SW_HIDE
+    return startupinfo
+
+
 def fetch_lyrics(song, artist):
     # 先搜歌，再取歌词并解析成时间轴列表。
     with contextlib.suppress(Exception):
@@ -100,7 +108,8 @@ def launch_netease(port=None, path=None):
             "--disable-background-timer-throttling",
             "--disable-backgrounding-occluded-windows",
             "--disable-renderer-backgrounding",
-        ]
+        ],
+        startupinfo=_hide_window(),
     )
     return True, exe, port
 

@@ -9,7 +9,7 @@ from tkinter import messagebox
 import psutil
 import win32api
 import win32gui
-from GPUtil import GPUtil
+from hardware_monitor import get_gpu_usage
 from osc_sender import format_output
 from winsdk.windows.media.control import (
     GlobalSystemMediaTransportControlsSessionManager as MediaManager,
@@ -43,15 +43,15 @@ class MessageMixin:
                 state = self.ncm_shared_state.data.copy()
                 lyrics = list(self.ncm_shared_state.lyrics)
                 song_key = self.ncm_shared_state.song_key
-            formatted_output = format_output(self.ncm_config, state, lyrics, song_key, self.music_title_limit.get(),
-                                             self.music_artist_limit.get())
+            formatted_output = format_output(self.ncm_config, state, lyrics, song_key, self._safe_int_get(self.music_title_limit, 'music_title_limit', 20),
+                                             self._safe_int_get(self.music_artist_limit, 'music_artist_limit', 25))
             return formatted_output
         else:
             try:
                 music_info = self.loop.run_until_complete(self._get_media_info_async())
                 if music_info:
-                    title = music_info['title'][:self.music_title_limit.get()]
-                    artist = music_info['artist'][:self.music_artist_limit.get()]
+                    title = music_info['title'][:self._safe_int_get(self.music_title_limit, 'music_title_limit', 20)]
+                    artist = music_info['artist'][:self._safe_int_get(self.music_artist_limit, 'music_artist_limit', 25)]
                     return f"[在听: {title} - {artist}]"
             except:
                 pass
@@ -62,8 +62,8 @@ class MessageMixin:
                 if "网易云音乐" in title:
                     match = re.match(r"(.+?)\s*-\s*(.+?)\s*-\s*.+?\s*网易云音乐", title)
                     if match:
-                        title = match.group(1)[:self.music_title_limit.get()]
-                        artist = match.group(2)[:self.music_artist_limit.get()]
+                        title = match.group(1)[:self._safe_int_get(self.music_title_limit, 'music_title_limit', 20)]
+                        artist = match.group(2)[:self._safe_int_get(self.music_artist_limit, 'music_artist_limit', 25)]
                         return f"[在听: {title} - {artist}]"
             except:
                 pass
@@ -106,7 +106,7 @@ class MessageMixin:
     def get_formatted_window_title(self):
         try:
             title = win32gui.GetWindowText(win32gui.GetForegroundWindow())
-            return f"[在看:{title[:self.window_title_limit.get()]}]"
+            return f"[在看:{title[:self._safe_int_get(self.window_title_limit, 'window_title_limit', 15)]}]"
         except:
             return ""
     def calculate_additional_length(self):
@@ -121,7 +121,7 @@ class MessageMixin:
                 '{message}': self.text_input.get("1.0", "end-1c").rstrip('\n'),
                 '{time}': self.get_formatted_time() if self.auto_time.get() else '',
                 '{window}': self.get_formatted_window_title() if self.auto_window.get() else '',
-                '{idle}': f"[已挂机: {self.format_duration(self.get_idle_duration())}]" if self.auto_idle.get() and self.get_idle_duration() >= self.idle_threshold.get() else '',
+                '{idle}': f"[已挂机: {self.format_duration(self.get_idle_duration())}]" if self.auto_idle.get() and self.get_idle_duration() >= self._safe_int_get(self.idle_threshold, 'idle_threshold', 30) else '',
                 '{music}': self.get_formatted_music_info() if self.auto_music.get() else '',
                 '{heart_rate}': f"[❤️:{self.heart_rate_monitor.current_hr} BPM]" if self.auto_heart_rate.get() and self.heart_rate_monitor.is_connected and self.heart_rate_monitor.current_hr > 0 else '',
             }
@@ -147,7 +147,7 @@ class MessageMixin:
                             hardware_parts.append(f"RAM: {ram_usage:.0f}%")
                 if self.auto_gpu.get():
                     gpu_usage = self.get_gpu_usage()
-                    if gpu_usage and gpu_usage != "无法获取GPU数据":
+                    if gpu_usage and gpu_usage not in ("无法获取GPU数据", "无法获取AMD GPU数据", "AMD库未安装"):
                         if self.gpu_custom_label.get():
                             custom_label = self.gpu_custom_label.get()
                             hardware_parts.append(f"GPU({custom_label}): {gpu_usage}")
@@ -172,7 +172,7 @@ class MessageMixin:
             total = len(result)
         else:
             # 传统模式下的计算
-            if self.auto_idle.get() and self.get_idle_duration() >= self.idle_threshold.get():
+            if self.auto_idle.get() and self.get_idle_duration() >= self._safe_int_get(self.idle_threshold, 'idle_threshold', 30):
                 total += len("[已挂机: 999分99秒]")
             if self.auto_time.get():
                 total += len(self.get_formatted_time())
@@ -205,7 +205,7 @@ class MessageMixin:
                             hardware_parts.append(f"RAM: {ram_usage:.0f}%")
                 if self.auto_gpu.get():
                     gpu_usage = self.get_gpu_usage()
-                    if gpu_usage and gpu_usage != "无法获取GPU数据":
+                    if gpu_usage and gpu_usage not in ("无法获取GPU数据", "无法获取AMD GPU数据", "AMD库未安装"):
                         if self.gpu_custom_label.get():
                             custom_label = self.gpu_custom_label.get()
                             hardware_parts.append(f"GPU({custom_label}): {gpu_usage}")
@@ -228,7 +228,7 @@ class MessageMixin:
                 '{message}': raw_message.rstrip('\n'),
                 '{time}': self.get_formatted_time() if self.auto_time.get() else '',
                 '{window}': self.get_formatted_window_title() if self.auto_window.get() else '',
-                '{idle}': f"[已挂机: {self.format_duration(self.get_idle_duration())}]" if self.auto_idle.get() and self.get_idle_duration() >= self.idle_threshold.get() else '',
+                '{idle}': f"[已挂机: {self.format_duration(self.get_idle_duration())}]" if self.auto_idle.get() and self.get_idle_duration() >= self._safe_int_get(self.idle_threshold, 'idle_threshold', 30) else '',
                 '{music}': self.get_formatted_music_info() if self.auto_music.get() else '',
                 '{heart_rate}': f"[❤️:{self.heart_rate_monitor.current_hr} BPM]" if self.auto_heart_rate.get() and self.heart_rate_monitor.is_connected and self.heart_rate_monitor.current_hr > 0 else '',
             }
@@ -254,7 +254,7 @@ class MessageMixin:
                             hardware_parts.append(f"RAM: {ram_usage:.0f}%")
                 if self.auto_gpu.get():
                     gpu_usage = self.get_gpu_usage()
-                    if gpu_usage and gpu_usage != "无法获取GPU数据":
+                    if gpu_usage and gpu_usage not in ("无法获取GPU数据", "无法获取AMD GPU数据", "AMD库未安装"):
                         if self.gpu_custom_label.get():
                             custom_label = self.gpu_custom_label.get()
                             hardware_parts.append(f"GPU({custom_label}): {gpu_usage}")
@@ -285,7 +285,7 @@ class MessageMixin:
             # 收集所有附加项
             if self.auto_idle.get():
                 idle_sec = self.get_idle_duration()
-                if idle_sec >= self.idle_threshold.get():
+                if idle_sec >= self._safe_int_get(self.idle_threshold, 'idle_threshold', 30):
                     additions["挂机状态"] = f"[已挂机: {self.format_duration(idle_sec)}]"
 
             if self.auto_time.get():
@@ -328,7 +328,7 @@ class MessageMixin:
                             hardware_parts.append(f"RAM: {ram_usage:.0f}%")
                 if self.auto_gpu.get():
                     gpu_usage = self.get_gpu_usage()
-                    if gpu_usage and gpu_usage != "无法获取GPU数据":
+                    if gpu_usage and gpu_usage not in ("无法获取GPU数据", "无法获取AMD GPU数据", "AMD库未安装"):
                         if self.gpu_custom_label.get():
                             custom_label = self.gpu_custom_label.get()
                             hardware_parts.append(f"GPU({custom_label}): {gpu_usage}")
@@ -340,7 +340,7 @@ class MessageMixin:
 
             # 按照设置的顺序组织附加项和消息内容
             ordered_parts = []
-            sorted_items = sorted(self.order_vars.items(), key=lambda x: int(x[1].get()))
+            sorted_items = sorted(self.order_vars.items(), key=lambda x: self._safe_order_int(x[1]))
 
             for item_name, _ in sorted_items:
                 if item_name == "消息内容":
@@ -375,6 +375,8 @@ class MessageMixin:
             return False
 
         try:
+            # 一次性采集硬件读数，保证 OSC 消息和调试面板显示一致
+            self._refresh_hardware_cache()
             final_message = self.process_message(raw_message)
             self.osc_client.send_message("/chatbox/input", [final_message, True])
 
@@ -400,7 +402,7 @@ class MessageMixin:
                 '{message}': raw_message.rstrip('\n'),
                 '{time}': self.get_formatted_time() if self.auto_time.get() else '',
                 '{window}': self.get_formatted_window_title() if self.auto_window.get() else '',
-                '{idle}': f"[已挂机: {self.format_duration(self.get_idle_duration())}]" if self.auto_idle.get() and self.get_idle_duration() >= self.idle_threshold.get() else '',
+                '{idle}': f"[已挂机: {self.format_duration(self.get_idle_duration())}]" if self.auto_idle.get() and self.get_idle_duration() >= self._safe_int_get(self.idle_threshold, 'idle_threshold', 30) else '',
                 '{music}': self.get_formatted_music_info() if self.auto_music.get() else '',
                 '{heart_rate}': f"[❤️:{self.heart_rate_monitor.current_hr} BPM]" if self.auto_heart_rate.get() and self.heart_rate_monitor.is_connected and self.heart_rate_monitor.current_hr > 0 else '',
             }
@@ -426,7 +428,7 @@ class MessageMixin:
                             hardware_parts.append(f"RAM: {ram_usage:.0f}%")
                 if self.auto_gpu.get():
                     gpu_usage = self.get_gpu_usage()
-                    if gpu_usage and gpu_usage != "无法获取GPU数据":
+                    if gpu_usage and gpu_usage not in ("无法获取GPU数据", "无法获取AMD GPU数据", "AMD库未安装"):
                         if self.gpu_custom_label.get():
                             custom_label = self.gpu_custom_label.get()
                             hardware_parts.append(f"GPU({custom_label}): {gpu_usage}")
@@ -457,7 +459,7 @@ class MessageMixin:
             # 收集所有附加项
             if self.auto_idle.get():
                 idle_sec = self.get_idle_duration()
-                if idle_sec >= self.idle_threshold.get():
+                if idle_sec >= self._safe_int_get(self.idle_threshold, 'idle_threshold', 30):
                     additions["挂机状态"] = f"[已挂机: {self.format_duration(idle_sec)}]"
 
             if self.auto_time.get():
@@ -500,7 +502,7 @@ class MessageMixin:
                             hardware_parts.append(f"RAM: {ram_usage:.0f}%")
                 if self.auto_gpu.get():
                     gpu_usage = self.get_gpu_usage()
-                    if gpu_usage and gpu_usage != "无法获取GPU数据":
+                    if gpu_usage and gpu_usage not in ("无法获取GPU数据", "无法获取AMD GPU数据", "AMD库未安装"):
                         if self.gpu_custom_label.get():
                             custom_label = self.gpu_custom_label.get()
                             hardware_parts.append(f"GPU({custom_label}): {gpu_usage}")
@@ -512,7 +514,7 @@ class MessageMixin:
 
             # 按照设置的顺序组织附加项和消息内容
             ordered_parts = []
-            sorted_items = sorted(self.order_vars.items(), key=lambda x: int(x[1].get()))
+            sorted_items = sorted(self.order_vars.items(), key=lambda x: self._safe_order_int(x[1]))
 
             for item_name, _ in sorted_items:
                 if item_name == "消息内容":
@@ -576,7 +578,7 @@ class MessageMixin:
         # 首次发送成功后，切进定时发送循环。
         self.is_sending = True
         self.status_var.set("正在自动发送消息...")
-        interval = self.interval_var.get()
+        interval = self._safe_int_get(self.interval_var, 'interval', 3)
         success = self.send_message()
         if success:
             self.scheduled_event = self.root.after(interval * 1000, self.scheduled_send_status)
@@ -595,20 +597,23 @@ class MessageMixin:
     def update_debug_info(self):
         # 定时刷新调试区，显示当前拼接状态。
         try:
+            # 一次性采集硬件读数，让调试面板用和发送一致的缓存值
+            if self.auto_hardware.get():
+                self._refresh_hardware_cache()
             title = win32gui.GetWindowText(win32gui.GetForegroundWindow())
-            self.debug_labels['window'].config(text=title[:self.window_title_limit.get()] if title else "无")
+            self.debug_labels['window'].config(text=title[:self._safe_int_get(self.window_title_limit, 'window_title_limit', 15)] if title else "无")
 
             music_info = self.get_raw_music_info()
             self.debug_labels['music_title'].config(
-                text=music_info['title'][:self.music_title_limit.get()] if music_info else "无")
+                text=music_info['title'][:self._safe_int_get(self.music_title_limit, 'music_title_limit', 20)] if music_info else "无")
             self.debug_labels['music_artist'].config(
-                text=music_info['artist'][:self.music_artist_limit.get()] if music_info else "无")
+                text=music_info['artist'][:self._safe_int_get(self.music_artist_limit, 'music_artist_limit', 25)] if music_info else "无")
 
             idle_sec = self.get_idle_duration()
             self.debug_labels['idle_time'].config(text=self.format_duration(idle_sec))
 
             if self.is_sending:
-                remaining = self.interval_var.get() - (time.time() - self.last_send_time)
+                remaining = self._safe_int_get(self.interval_var, 'interval', 3) - (time.time() - self.last_send_time)
                 self.debug_labels['next_send'].config(text=f"{max(0, int(remaining))}秒")
             else:
                 self.debug_labels['next_send'].config(text="未启用")
@@ -652,7 +657,7 @@ class MessageMixin:
                     ram_message = ram_usage
 
                 gpu_usage = self.get_gpu_usage()
-                if gpu_usage != "无法获取GPU数据":
+                if gpu_usage not in ("无法获取GPU数据", "无法获取AMD GPU数据", "AMD库未安装"):
                     if self.gpu_custom_label.get():
                         gpu_message = f"{gpu_usage}"
                     else:
@@ -707,7 +712,7 @@ class MessageMixin:
             self.countdown_var.set("")
     def scheduled_send_status(self):
         if self.is_sending:
-            interval = self.interval_var.get()
+            interval = self._safe_int_get(self.interval_var, 'interval', 3)
             success = self.send_message()
             if success:
                 self.scheduled_event = self.root.after(interval * 1000, self.scheduled_send_status)
@@ -729,7 +734,7 @@ class MessageMixin:
             else:
                 status.append("音乐信息")
         if self.auto_idle.get():
-            idle_threshold = self.idle_threshold.get() if self.idle_threshold.get() is not None else 60
+            idle_threshold = self._safe_int_get(self.idle_threshold, 'idle_threshold', 30)
             status.append(f"挂机检测({idle_threshold}秒)")
         if self.auto_hardware.get():
             hardware_parts = []
@@ -802,23 +807,47 @@ class MessageMixin:
             pass
 
         self.root.destroy()
+    def _refresh_hardware_cache(self):
+        """一次性采集 CPU / RAM / GPU 读数并缓存，保证同一周期内各处读数一致。"""
+        try:
+            self._cached_cpu = psutil.cpu_percent(interval=0.1)
+        except Exception:
+            self._cached_cpu = "N/A"
+        try:
+            self._cached_ram = psutil.virtual_memory().percent
+        except Exception:
+            self._cached_ram = "N/A"
+        try:
+            self._cached_gpu = get_gpu_usage()
+        except Exception:
+            self._cached_gpu = "N/A"
+
     def get_cpu_usage(self):
+        """返回 CPU 使用率，优先使用缓存值。"""
+        if self._cached_cpu is not None:
+            return self._cached_cpu
         try:
-            return psutil.cpu_percent(interval=None)
-        except:
+            self._cached_cpu = psutil.cpu_percent(interval=0.1)
+            return self._cached_cpu
+        except Exception:
             return "N/A"
+
     def get_ram_usage(self):
+        """返回 RAM 使用率，优先使用缓存值。"""
+        if self._cached_ram is not None:
+            return self._cached_ram
         try:
-            memory = psutil.virtual_memory()
-            return memory.percent
-        except:
+            self._cached_ram = psutil.virtual_memory().percent
+            return self._cached_ram
+        except Exception:
             return "N/A"
+
     def get_gpu_usage(self):
+        """返回 GPU 使用率，优先使用缓存值。"""
+        if self._cached_gpu is not None:
+            return self._cached_gpu
         try:
-            gpus = GPUtil.getGPUs()
-            if gpus:
-                return f"{gpus[0].load * 100:.0f}%"
-            else:
-                return "无GPU"
-        except:
-            return "无法获取GPU数据"
+            self._cached_gpu = get_gpu_usage()
+            return self._cached_gpu
+        except Exception:
+            return "N/A"

@@ -27,8 +27,10 @@ class WidgetsMixin:
 
         content = [
             ("VRChat常驻消息工具", 14, "bold"),
-            ("版本：1.3", 12),
-            ("作者：(VRC)B_小槟", 12),
+            ("版本：1.4", 12),
+            ("作者：", 12),
+            ("VRChat: B_小槟 ", 12, ),
+            ("Github: Xiaobingge114514 ", 12, ),
             ("", 10),
             ("功能特性：", 12, "bold"),
             ("- OSC协议消息发送", 10),
@@ -42,6 +44,7 @@ class WidgetsMixin:
             ("- 发送顺序自定义与配置持久保存", 10),
             ("- 模板字符串模式（高级）", 10),
             ("- 高级音乐信息（网易云歌词同步）", 10),
+            ("- 启动软件自动发送功能", 10),
             ("", 10),
             ("提示：点击右下角水印显示本窗口", 9, "italic")
         ]
@@ -123,7 +126,9 @@ class WidgetsMixin:
             from_=1,
             to=300,
             textvariable=self.interval_var,
-            width=5
+            width=5,
+            validate="key",
+            validatecommand=(self.root.register(self._validate_digits), '%P')
         ).pack(side=tk.LEFT, padx=5)
 
         self.start_btn = ttk.Button(
@@ -140,6 +145,13 @@ class WidgetsMixin:
             control_frame,
             textvariable=self.countdown_var,
             foreground="#666666"
+        ).pack(side=tk.LEFT, padx=5)
+
+        # 开机自动启动倒计时提示
+        ttk.Label(
+            control_frame,
+            textvariable=self.auto_start_countdown_var,
+            foreground="#0066CC"
         ).pack(side=tk.LEFT, padx=5)
 
         self.status_var = tk.StringVar()
@@ -232,7 +244,9 @@ class WidgetsMixin:
             from_=5,
             to=21600,
             textvariable=self.idle_threshold,
-            width=7
+            width=7,
+            validate="key",
+            validatecommand=(self.root.register(self._validate_digits), '%P')
         )
         spinbox.pack(side=tk.LEFT)
         self.idle_threshold.trace_add("write", lambda *args: self.update_status())

@@ -104,7 +104,8 @@ class SettingsMixin:
         window_limit_frame.pack(fill=tk.X, padx=10, pady=5)
         ttk.Label(window_limit_frame, text="窗口标题最大字符数:").pack(side=tk.LEFT)
         window_limit_spin = ttk.Spinbox(window_limit_frame, from_=1, to=100, textvariable=self.window_title_limit,
-                                        width=10)
+                                        width=10, validate="key",
+                                        validatecommand=(self.root.register(self._validate_digits), '%P'))
         window_limit_spin.pack(side=tk.LEFT, padx=5)
 
         # 音乐标题字符限制
@@ -112,7 +113,8 @@ class SettingsMixin:
         music_title_limit_frame.pack(fill=tk.X, padx=10, pady=5)
         ttk.Label(music_title_limit_frame, text="音乐标题最大字符数:").pack(side=tk.LEFT)
         music_title_limit_spin = ttk.Spinbox(music_title_limit_frame, from_=1, to=100,
-                                             textvariable=self.music_title_limit, width=10)
+                                             textvariable=self.music_title_limit, width=10, validate="key",
+                                             validatecommand=(self.root.register(self._validate_digits), '%P'))
         music_title_limit_spin.pack(side=tk.LEFT, padx=5)
 
         # 音乐艺术家字符限制
@@ -120,7 +122,8 @@ class SettingsMixin:
         music_artist_limit_frame.pack(fill=tk.X, padx=10, pady=5)
         ttk.Label(music_artist_limit_frame, text="音乐艺术家最大字符数:").pack(side=tk.LEFT)
         music_artist_limit_spin = ttk.Spinbox(music_artist_limit_frame, from_=1, to=100,
-                                              textvariable=self.music_artist_limit, width=10)
+                                              textvariable=self.music_artist_limit, width=10, validate="key",
+                                              validatecommand=(self.root.register(self._validate_digits), '%P'))
         music_artist_limit_spin.pack(side=tk.LEFT, padx=5)
 
         # 高级音乐信息设置标签页
@@ -169,7 +172,8 @@ class SettingsMixin:
         port_frame = ttk.Frame(advanced_music_frame)
         port_frame.pack(fill=tk.X, padx=10, pady=5)
         ttk.Label(port_frame, text="调试端口:").pack(side=tk.LEFT)
-        port_spinbox = ttk.Spinbox(port_frame, from_=1000, to=65535, textvariable=self.ncm_port, width=10)
+        port_spinbox = ttk.Spinbox(port_frame, from_=1000, to=65535, textvariable=self.ncm_port, width=10,
+                                   validate="key", validatecommand=(self.root.register(self._validate_digits), '%P'))
         port_spinbox.pack(side=tk.LEFT, padx=5)
         ttk.Label(port_frame, text="(默认: 9222)").pack(side=tk.LEFT)
 
@@ -181,7 +185,8 @@ class SettingsMixin:
         width_frame.pack(fill=tk.X, pady=2)
         ttk.Label(width_frame, text="宽度:").pack(side=tk.LEFT)
         self.width_var = tk.StringVar(value=str(self.ncm_config.bar_width))
-        self.width_entry = ttk.Entry(width_frame, textvariable=self.width_var, width=5)
+        self.width_entry = ttk.Entry(width_frame, textvariable=self.width_var, width=5,
+                                     validate="key", validatecommand=(self.root.register(self._validate_digits), '%P'))
         self.width_entry.pack(side=tk.LEFT, padx=5)
         self.width_entry.bind("<FocusOut>", lambda e: self.update_ncm_config(self.width_entry, "bar_width"))
 
@@ -245,13 +250,40 @@ class SettingsMixin:
             to=65535,
             textvariable=self.osc_port,
             width=10,
-            command=self.update_osc_client
+            command=self.update_osc_client,
+            validate="key",
+            validatecommand=(self.root.register(self._validate_digits), '%P')
         )
         port_spinbox.pack(side=tk.LEFT, padx=5)
         ttk.Label(port_frame, text="示例: 9000").pack(side=tk.LEFT)
 
         save_config_btn = ttk.Button(send_frame, text="保存配置", command=self.save_config)
         save_config_btn.pack(pady=10)
+
+        # 分隔线
+        ttk.Separator(send_frame).pack(fill=tk.X, pady=5)
+
+        # 开机自启发送功能
+        auto_start_check = ttk.Checkbutton(
+            send_frame,
+            text="开启软件后自动开启消息发送",
+            variable=self.auto_start_enabled,
+        )
+        auto_start_check.pack(anchor="w", pady=5)
+
+        delay_frame = ttk.Frame(send_frame)
+        delay_frame.pack(fill=tk.X, pady=5)
+        ttk.Label(delay_frame, text="启动延时(秒):").pack(side=tk.LEFT)
+        ttk.Spinbox(
+            delay_frame,
+            from_=0,
+            to=300,
+            textvariable=self.auto_start_delay,
+            width=10,
+            validate="key",
+            validatecommand=(self.root.register(self._validate_digits), '%P')
+        ).pack(side=tk.LEFT, padx=5)
+        ttk.Label(delay_frame, text="(0 = 立即启动)").pack(side=tk.LEFT)
 
         advanced_frame = ttk.Frame(notebook)
         notebook.add(advanced_frame, text="(高级)发送顺序")
@@ -334,7 +366,7 @@ class SettingsMixin:
                     duration_sec = state.dur % 60
                     if settings_window and self.current_playing_label.winfo_exists():  # 检查标签是否存在
                         self.current_playing_label.config(
-                            text=f"播放中: {state.song[:self.music_title_limit.get()]} - {state.artist[:self.music_artist_limit.get()]} - {duration_min}:{duration_sec:02d}",
+                            text=f"播放中: {state.song[:self._safe_int_get(self.music_title_limit, 'music_title_limit', 20)]} - {state.artist[:self._safe_int_get(self.music_artist_limit, 'music_artist_limit', 25)]} - {duration_min}:{duration_sec:02d}",
                             foreground="green"
                         )
                 else:
@@ -371,7 +403,7 @@ class SettingsMixin:
     def launch_netease(self):
         """启动网易云音乐"""
         path = self.ncm_path.get() if self.ncm_path.get() else None
-        port = self.ncm_port.get()
+        port = self._safe_int_get(self.ncm_port, 'ncm_port', 9222)
         self.ncm_config.ncm_port = port
         self.ncm_config.ncm_path = path if path else ""
 
